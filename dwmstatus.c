@@ -1,4 +1,7 @@
 #define _DEFAULT_SOURCE
+#define BATT_NOW        "/sys/class/power_supply/BAT0/charge_now"
+#define BATT_FULL       "/sys/class/power_supply/BAT0/charge_full"
+#define BATT_STATUS       "/sys/class/power_supply/BAT0/status"
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,7 +12,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-
+#include <errno.h>
 #include <X11/Xlib.h>
 
 // VARIABLES
@@ -17,7 +20,7 @@ static Display *dpy;
 
 // Timezones
 char *tzutc = "UTC";
-char *tzsocal = "America/New_York";
+char *tzlocal = "America/New_York";
 
 // Sensors.. use full paths.
 // sensor0 -> "Core 0"
@@ -122,6 +125,34 @@ gettemperature(char *sensor)
     if (str == NULL)
         return smprintf("");
     return smprintf("%02.0f°c", atof(str) / 1000);
+}
+
+// BATTERY
+//
+char *
+getbattery(){
+    long lnum1, lnum2 = 0;
+    char *status = malloc(sizeof(char)*12);
+    char s = '?';
+    FILE *fp = NULL;
+    if ((fp = fopen(BATT_NOW, "r"))) {
+        fscanf(fp, "%ld\n", &lnum1);
+        fclose(fp);
+        fp = fopen(BATT_FULL, "r");
+        fscanf(fp, "%ld\n", &lnum2);
+        fclose(fp);
+        fp = fopen(BATT_STATUS, "r");
+        fscanf(fp, "%s\n", status);
+        fclose(fp);
+        if (strcmp(status,"Charging") == 0)
+            s = '+';
+        if (strcmp(status,"Discharging") == 0)
+            s = '-';
+        if (strcmp(status,"Full") == 0)
+            s = '=';
+        return smprintf("%c%ld%%", s,(lnum1/(lnum2/100)));
+    }
+    else return smprintf("");
 }
 
 // NETUSAGE
@@ -238,14 +269,15 @@ int runevery(time_t *ltime, int sec){
 int
 main(void)
 {
-	char *status=NULL;
-	char *avgs=NULL;
-	char *tmutc=NULL;
-	char *tmsocal=NULL;
-    char *temp0=NULL;
-    char *temp1=NULL;
+	char *status = NULL;
+	char *avgs = NULL;
+	char *tmutc = NULL;
+	char *tmlocal = NULL;
+    char *temp0 = NULL;
+    char *temp1 = NULL;
     int vol;
-    char *netstats=NULL;
+    char *battery = NULL;
+    char *netstats = NULL;
     static unsigned long long int rec, sent;
     time_t count60 = 0;
 
@@ -259,24 +291,26 @@ main(void)
         // Update these every minute
         if (runevery(&count60, 60)) {
                 free(tmutc);
-                free(tmsocal);
+                free(tmlocal);
 		        tmutc = mktimes("%H:%M", tzutc);
-		        tmsocal = mktimes("%a %b %d %H:%M", tzsocal);
+		        tmlocal = mktimes("%a %b %d %H:%M", tzlocal);
         }
         // Update the rest every second
 		avgs = loadavg();
         temp0 = gettemperature(sensor0);
         temp1 = gettemperature(sensor1);
-        vol = getvolume();
         netstats = get_netusage(&rec, &sent);
+        vol = getvolume();
+        battery = getbattery();
 
-		//status = smprintf("\x04\u00B3\x01 %s \x04\u00B1\x01 %s \x04\u00A4\x01 %s \x04\u00B6\x01 %d \x04UTC\x01 %s \x04\u00B7\x01 %s \x04\u00A1 \u00A2 \u00A3 \u00A4 \u00A5 \u00A6 \u00A7 \u00A8 \u00A9 \u00B0 \u00B1 \u00B2 \u00B3 \u00B4 \u00B5 \u00B6 \u00B7 \u00B8 \u00B9 \u00C1 \x01",
-		status = smprintf("\x04\u00B3\x01 %s \x04\u00B1\x01 %s %s \x04\u00A4\x01 %s \x04\u00B6\x01 %d \x04UTC\x01 %s \x04\u00B7\x01 %s ",
-				avgs, temp0, temp1, netstats, vol, tmutc, tmsocal);
+		//status = smprintf("\x04\u00B3\x01 %s \x04\u00B1\x01 %s %s \x04\u00A4\x01 %s \x04\u00B6\x01 %d Batt %s \x04UTC\x01 %s \x04\u00B7\x01 %s \x04\u00A1 \u00A2 \u00A3 \u00A4 \u00A5 \u00A6 \u00A7 \u00A8 \u00A9 \u00B0 \u00B1 \u00B2 \u00B3 \u00B4 \u00B5 \u00B6 \u00B7 \u00B8 \u00B9 \u00C1\x01",
+		status = smprintf("\x04\u00B3\x01 %s \x04\u00B1\x01 %s %s \x04\u00A4\x01 %s \x04\u00B6\x01 %d \x04\u00B5\x01 %s \x04UTC\x01 %s \x04\u00B7\x01 %s ",
+				avgs, temp0, temp1, netstats, vol, battery, tmutc, tmlocal);
 		setstatus(status);
 		free(avgs);
         free(temp0);
         free(temp1);
+        free(battery);
 		free(status);
 	}
 
