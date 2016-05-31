@@ -19,19 +19,20 @@
 static Display *dpy;
 
 // Timezones
-char *tzutc = "UTC";
-char *tzlocal = "America/New_York";
+char * tzutc = "UTC";
+char * tzlocal = "America/New_York";
 
 // Sensors.. use full paths.
 // sensor0 -> "Core 0"
-char *sensor0 = "/sys/class/hwmon/hwmon2/temp2_input";
 // sensor1 -> "Core 1"
-char *sensor1 = "/sys/class/hwmon/hwmon2/temp3_input";
+char * sensor0 = "/sys/class/hwmon/hwmon2/temp2_input";
+char * sensor1 = "/sys/class/hwmon/hwmon2/temp3_input";
+
+// Battery ->
+char * battery = "/sys/class/power_supply/BAT0";
 
 // SUCKLESS' PRINTF()
-char *
-smprintf(char *fmt, ...)
-{
+char * smprintf(char *fmt, ...) {
 	va_list fmtargs;
 	char *ret;
 	int len;
@@ -55,15 +56,11 @@ smprintf(char *fmt, ...)
 
 // TIME
 //
-void
-settz(char *tzname)
-{
+void settz(char *tzname) {
 	setenv("TZ", tzname, 1);
 }
 
-char *
-mktimes(char *fmt, char *tzname)
-{
+char * mktimes(char *fmt, char *tzname) {
 	char buf[129];
 	time_t tim;
 	struct tm *timtm;
@@ -87,18 +84,14 @@ mktimes(char *fmt, char *tzname)
 
 // X11 STUFF
 //
-void
-setstatus(char *str)
-{
+void setstatus(char *str) {
 	XStoreName(dpy, DefaultRootWindow(dpy), str);
 	XSync(dpy, False);
 }
 
 // LOADAVG
 //
-char *
-loadavg(void)
-{
+char * loadavg(void) {
 	double avgs[3];
 
 	if (getloadavg(avgs, 3) < 0) {
@@ -111,9 +104,7 @@ loadavg(void)
 
 // PROCESSOR TEMPERATURES
 //
-char *
-gettemperature(char *sensor)
-{
+char * gettemperature(char *sensor) {
     FILE *fp;
     char str[6];
     
@@ -129,11 +120,10 @@ gettemperature(char *sensor)
 
 // BATTERY
 //
-char *
-getbattery(){
+char * getbattery() {
     long lnum1, lnum2 = 0;
     char *status = malloc(sizeof(char)*12);
-    char s = '?';
+    char state = '?';
     FILE *fp = NULL;
     if ((fp = fopen(BATT_NOW, "r"))) {
         fscanf(fp, "%ld\n", &lnum1);
@@ -145,21 +135,19 @@ getbattery(){
         fscanf(fp, "%s\n", status);
         fclose(fp);
         if (strcmp(status,"Charging") == 0)
-            s = '+';
+            state = '+';
         if (strcmp(status,"Discharging") == 0)
-            s = '-';
+            state = '-';
         if (strcmp(status,"Full") == 0)
-            s = '=';
-        return smprintf("%c%ld%%", s,(lnum1/(lnum2/100)));
+            state = '=';
+        return smprintf("%c%ld%%", state,(lnum1/(lnum2/100)));
     }
     else return smprintf("");
 }
 
 // NETUSAGE
 //
-int
-parse_netdev(unsigned long long int *receivedabs, unsigned long long int *sentabs)
-{
+int parse_netdev(unsigned long long int *receivedabs, unsigned long long int *sentabs) {
     char buf[255];
     char *datastart;
     static int bufsize;
@@ -192,9 +180,7 @@ parse_netdev(unsigned long long int *receivedabs, unsigned long long int *sentab
     return rval;
 }
 
-void
-calculate_speed(char *speedstr, unsigned long long int newval, unsigned long long int oldval)
-{
+void calculate_speed(char *speedstr, unsigned long long int newval, unsigned long long int oldval) {
     double speed;
     speed = (newval - oldval) / 1024.0;
     if (speed > 1024.0) {
@@ -205,9 +191,7 @@ calculate_speed(char *speedstr, unsigned long long int newval, unsigned long lon
     }
 }
 
-char *
-get_netusage(unsigned long long int *rec, unsigned long long int *sent)
-{
+char * get_netusage(unsigned long long int *rec, unsigned long long int *sent) {
     unsigned long long int newrec, newsent;
     newrec = newsent = 0;
     char downspeedstr[15], upspeedstr[15];
@@ -232,8 +216,7 @@ get_netusage(unsigned long long int *rec, unsigned long long int *sent)
 
 // VOLUME
 //
-char*
-runcmd(char* cmd) {
+char * runcmd(char* cmd) {
     FILE* fp = popen(cmd, "r");
     if (fp == NULL) return NULL;
     char ln[30];
@@ -243,14 +226,13 @@ runcmd(char* cmd) {
     return smprintf("%s", ln);
 }
 
-int
-getvolume() {
+int getvolume() {
     int volume;
         sscanf(runcmd("amixer get Master | awk -F'[]%[]' '/%/ { print $2 }'"), "%i%%", &volume);
     return volume;
 }
 
-int runevery(time_t *ltime, int sec){
+int runevery(time_t *ltime, int sec) {
     /* return 1 if `sec` elapsed since last run
      * else return 0 
     */
@@ -266,9 +248,7 @@ int runevery(time_t *ltime, int sec){
 
 // MAIN: PUT IT ALL TOGETHER
 //
-int
-main(void)
-{
+int main(void) {
 	char *status = NULL;
 	char *avgs = NULL;
 	char *tmutc = NULL;
