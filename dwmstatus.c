@@ -20,7 +20,7 @@ static Display *dpy;
 
 // Timezones
 char * tzutc = "UTC";
-char * tzlocal = "America/New_York";
+char * tzlocal = "America/Los_Angeles";
 
 // Sensors.. use full paths.
 // sensor0 -> "Core 0"
