@@ -25,8 +25,11 @@ char * tzlocal = "America/Los_Angeles";
 // Sensors.. use full paths.
 // sensor0 -> "Core 0"
 // sensor1 -> "Core 1"
-char * sensor0 = "/sys/class/hwmon/hwmon2/temp2_input";
-char * sensor1 = "/sys/class/hwmon/hwmon2/temp3_input";
+char * sensor0 = "/sys/class/hwmon/hwmon3/temp2_input";
+char * sensor1 = "/sys/class/hwmon/hwmon3/temp3_input";
+// Try w/ permanent device paths
+//char * sensor0 = "/sys/devices/platform/coretemp.0/hwmon/hwmon2/temp2_input";
+//char * sensor1 = "/sys/devices/platform/coretemp.0/hwmon/hwmon2/temp3_input";
 
 // Battery ->
 char * battery = "/sys/class/power_supply/BAT0";
